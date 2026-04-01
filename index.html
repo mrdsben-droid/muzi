@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>运营数据看板 Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f4f7ff;
+      --card: #ffffff;
+      --text: #16213e;
+      --muted: #6b7280;
+      --primary: #4f46e5;
+      --primary-soft: #eef0ff;
+      --success: #10b981;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --border: #e5e7eb;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: "Segoe UI", Arial, "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background: linear-gradient(135deg, #eef3ff 0%, #f8f9ff 45%, #f4f7ff 100%);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      background: linear-gradient(120deg, #3f5efb 0%, #7c3aed 100%);
+      color: #fff;
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 12px 26px rgba(72, 58, 177, 0.22);
+      margin-bottom: 18px;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    .hero p {
+      margin: 0;
+      opacity: 0.92;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .uploader {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 12px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      margin: 16px 0 20px;
+      align-items: center;
+    }
+
+    .uploader input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px dashed #b9c0ff;
+      border-radius: 10px;
+      background: #fafbff;
+      cursor: pointer;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: -10px;
+      margin-bottom: 18px;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 14px;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .filters select {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      background: #fff;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .grid-kpi {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(130px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .kpi {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 6px 20px rgba(52, 73, 122, 0.08);
+    }
+
+    .kpi .label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .kpi .value {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 6px 20px rgba(52, 73, 122, 0.06);
+    }
+
+    .section h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .summary-box {
+      background: var(--primary-soft);
+      border: 1px solid #dfe2ff;
+      border-radius: 10px;
+      padding: 12px;
+      line-height: 1.7;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      font-size: 14px;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 10px;
+      text-align: center;
+    }
+
+    th {
+      background: #f8f9ff;
+      font-weight: 700;
+    }
+
+    tr:hover td {
+      background: #fafbff;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 16px;
+    }
+
+    .list-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .list-title {
+      font-size: 15px;
+      margin: 0 0 8px;
+      font-weight: 700;
+    }
+
+    .chip {
+      display: inline-block;
+      font-size: 12px;
+      border-radius: 999px;
+      padding: 2px 8px;
+      margin-left: 8px;
+      color: #fff;
+      vertical-align: middle;
+    }
+
+    .chip.top { background: var(--success); }
+    .chip.low { background: var(--danger); }
+
+    .item {
+      border-left: 4px solid #d3d8ff;
+      background: #fafbff;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+      line-height: 1.6;
+      font-size: 13px;
+    }
+
+    .item strong {
+      color: #111827;
+    }
+
+    .daily-report {
+      white-space: pre-wrap;
+      line-height: 1.8;
+      background: #fcfcff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 14px;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .chart-wrap {
+      height: 320px;
+    }
+
+    .ratio-up { color: #059669; font-weight: 700; }
+    .ratio-down { color: #dc2626; font-weight: 700; }
+    .ratio-flat { color: #6b7280; font-weight: 700; }
+
+    @media (max-width: 980px) {
+      .grid-kpi {
+        grid-template-columns: repeat(3, minmax(120px, 1fr));
+      }
+      .two-col {
+        grid-template-columns: 1fr;
+      }
+      .uploader {
+        grid-template-columns: 1fr;
+      }
+      .filters {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero">
+      <h1>木梓运营数据看板</h1>
+      <p>
+        支持导入 Excel/CSV 或直接对接 Google Sheets 自动分析平台表现、内容类型差异、爆款与低效内容、账号排行和 SEO 收录情况。<br />
+        优先读取 Google Sheets 实时数据，读取失败时可继续使用本地文件导入或假数据演示。
+      </p>
+    </div>
+
+    <div class="uploader">
+      <input id="upload" type="file" accept=".xlsx,.xls,.csv,.execl" />
+      <button class="btn" id="syncSheetBtn">同步 Google 表格</button>
+      <button class="btn" id="loadMockBtn">加载假数据演示</button>
+    </div>
+    <div class="status" id="syncStatus">同步状态：未同步</div>
+    <div class="hint">字段已做兼容：支持中英文列名、大小写、空格/下划线差异，按“图片式导入”常见表头自动匹配。</div>
+    <div class="hint">统计范围：<strong>以本机今天为终点，含今日共 30 个自然日</strong>（例如 4 月 1 日则含 3 月 3 日～4 月 1 日）。同步表格仍拉取整表，页面按「宣发时间」筛入该区间。</div>
+
+    <div class="filters">
+      <select id="accountFilter"></select>
+      <select id="platformFilter"></select>
+    </div>
+
+    <div class="grid-kpi" id="kpiGrid"></div>
+
+    <section class="section">
+      <h2>近30天播放量条形图（按日期）</h2>
+      <div class="chart-wrap"><canvas id="monthChart"></canvas></div>
+    </section>
+
+    <section class="section">
+      <h2>数据总览</h2>
+      <div id="overviewSentence" class="summary-box"></div>
+    </section>
+
+    <section class="section">
+      <h2>对应日期平台对比分析（表格）</h2>
+      <table id="platformTable"></table>
+    </section>
+
+    <section class="section">
+      <h2>环比监控模块（周环比 / 月环比）</h2>
+      <table id="compareTable"></table>
+    </section>
+
+    <section class="section">
+      <h2>自动生成日报</h2>
+      <div id="dailyReport" class="daily-report"></div>
+      <p class="muted">注：日期可按需要替换；“Agent 执行情况”和问题项会根据数据结构自动补充基础结论。</p>
+    </section>
+  </div>
+
+  <script>
+    const platformOrder = ["Twitter", "YouTube", "TikTok", "Instagram", "Facebook"];
+    const GOOGLE_SHEET_ID = "11tX7l6QJf7V4HifzsUeN1FNVzHbRtaLPN5vjeHr2F3w";
+    const GOOGLE_SHEET_GID = "0";
+    const GOOGLE_SHEET_NAME = "宣发记录表";
+    const SYNC_DATE_KEY = "mu_dashboard_last_sync_date";
+
+    const fakeData = [
+      { date: "3-22", platform: "Twitter", account: "MU_Global", title: "赛事集锦短片", contentSource: "原创", contentForm: "视频", views: 60, likes: 10, comments: 1, saves: 0, shares: 2, seoIndexed: 0, link: "https://x.com/post/1" },
+      { date: "3-23", platform: "TikTok", account: "MU_Official", title: "选手高光瞬间", contentSource: "原创", contentForm: "视频", views: 266, likes: 28, comments: 5, saves: 3, shares: 8, seoIndexed: 0, link: "https://tiktok.com/@mu/1" },
+      { date: "3-24", platform: "Instagram", account: "MU_IG_Main", title: "冠军回顾 Reel", contentSource: "原创", contentForm: "视频", views: 302000, likes: 1830, comments: 152, saves: 102, shares: 88, seoIndexed: 0, link: "https://instagram.com/p/1" },
+      { date: "3-24", platform: "Instagram", account: "MU_IG_Main", title: "赛场图文速报", contentSource: "原创", contentForm: "图文", views: 180, likes: 16, comments: 2, saves: 2, shares: 1, seoIndexed: 0, link: "https://instagram.com/p/2" },
+      { date: "3-25", platform: "Instagram", account: "MU_IG_Main", title: "选手采访片段", contentSource: "搬运", contentForm: "视频", views: 140, likes: 12, comments: 1, saves: 1, shares: 0, seoIndexed: 0, link: "https://instagram.com/p/3" },
+      { date: "3-25", platform: "Instagram", account: "MU_IG_Sub", title: "海报轮播", contentSource: "原创", contentForm: "图文", views: 120, likes: 11, comments: 2, saves: 1, shares: 1, seoIndexed: 0, link: "https://instagram.com/p/4" },
+      { date: "3-26", platform: "Instagram", account: "MU_IG_Sub", title: "幕后花絮", contentSource: "原创", contentForm: "视频", views: 95, likes: 9, comments: 1, saves: 0, shares: 1, seoIndexed: 0, link: "https://instagram.com/p/5" },
+      { date: "3-26", platform: "Instagram", account: "MU_IG_Sub", title: "赛程提醒图", contentSource: "搬运", contentForm: "图文", views: 96, likes: 8, comments: 1, saves: 1, shares: 0, seoIndexed: 0, link: "https://instagram.com/p/6" },
+      { date: "3-27", platform: "Facebook", account: "MU_FB_Main", title: "赛后精彩回放", contentSource: "原创", contentForm: "视频", views: 35, likes: 8, comments: 1, saves: 0, shares: 1, seoIndexed: 0, link: "https://facebook.com/post/1" },
+      { date: "3-27", platform: "Facebook", account: "MU_FB_Main", title: "赛程预告图", contentSource: "原创", contentForm: "图文", views: 12, likes: 3, comments: 0, saves: 0, shares: 0, seoIndexed: 0, link: "https://facebook.com/post/2" },
+      { date: "3-28", platform: "Facebook", account: "MU_FB_Sub", title: "战队海报", contentSource: "搬运", contentForm: "图文", views: 18, likes: 4, comments: 0, saves: 0, shares: 0, seoIndexed: 0, link: "https://facebook.com/post/3" },
+      { date: "3-28", platform: "Facebook", account: "MU_FB_Sub", title: "赛事快讯", contentSource: "原创", contentForm: "图文", views: 20, likes: 5, comments: 0, saves: 0, shares: 0, seoIndexed: 0, link: "https://facebook.com/post/4" },
+      { date: "3-29", platform: "YouTube", account: "MU_YT_Main", title: "完整赛后回放", contentSource: "原创", contentForm: "视频", views: 980, likes: 56, comments: 8, saves: 0, shares: 4, seoIndexed: 1, link: "https://youtube.com/watch?v=1" },
+      { date: "3-30", platform: "TikTok", account: "MU_Official", title: "一分钟战术复盘", contentSource: "原创", contentForm: "视频", views: 540, likes: 42, comments: 6, saves: 4, shares: 10, seoIndexed: 0, link: "https://tiktok.com/@mu/2" }
+    ];
+
+    function toMdDate(dateObj) {
+      return `${dateObj.getMonth() + 1}-${dateObj.getDate()}`;
+    }
+
+    function generateMockMonthData(baseRows) {
+      const seeded = [...baseRows];
+      const latest = new Date();
+      const accountsByPlatform = {
+        Twitter: "MU_Global",
+        YouTube: "MU_YT_Main",
+        TikTok: "MU_Official",
+        Instagram: "MU_IG_Main",
+        Facebook: "MU_FB_Main"
+      };
+      const titleByPlatform = {
+        Twitter: "Twitter 日常赛况更新",
+        YouTube: "YouTube 赛事回放精选",
+        TikTok: "TikTok 短视频热点",
+        Instagram: "Instagram 视觉内容发布",
+        Facebook: "Facebook 社区快讯"
+      };
+      const baseViews = {
+        Twitter: 120,
+        YouTube: 680,
+        TikTok: 520,
+        Instagram: 1200,
+        Facebook: 210
+      };
+      const hasKey = new Set(seeded.map((r) => `${r.date}|${r.platform}`));
+
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(latest);
+        d.setDate(latest.getDate() - i);
+        const md = toMdDate(d);
+        platformOrder.forEach((platform, idx) => {
+          const key = `${md}|${platform}`;
+          if (hasKey.has(key)) return;
+          const wave = Math.sin((30 - i + idx) / 3) * 0.22 + 1;
+          const views = Math.max(0, Math.round(baseViews[platform] * wave + ((i + idx) % 7) * 18));
+          const likes = Math.round(views * 0.06);
+          const comments = Math.round(views * 0.008);
+          const saves = Math.round(views * 0.004);
+          const shares = Math.round(views * 0.007);
+          seeded.push({
+            date: md,
+            platform,
+            account: accountsByPlatform[platform],
+            title: titleByPlatform[platform],
+            contentSource: "原创",
+            contentForm: "视频",
+            views,
+            likes,
+            comments,
+            saves,
+            shares,
+            seoIndexed: platform === "YouTube" ? 1 : 0,
+            link: "-"
+          });
+        });
+      }
+      return seeded;
+    }
+
+    let allRows = [];
+    let monthChart = null;
+
+    function normalizeHeader(key) {
+      return String(key || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s_()\-:：]/g, "");
+    }
+
+    function toNumber(v) {
+      if (v === null || v === undefined || v === "") return 0;
+      const str = String(v).replace(/,/g, "").trim();
+      const n = Number(str);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function normalizeDateValue(v) {
+      if (v instanceof Date && !Number.isNaN(v.getTime())) {
+        return formatDateKey(v);
+      }
+      if (typeof v === "number" && Number.isFinite(v)) {
+        // Excel 序列日期兼容
+        const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+        const date = new Date(excelEpoch.getTime() + v * 86400000);
+        if (!Number.isNaN(date.getTime())) return formatDateKey(date);
+      }
+      const raw = String(v || "").trim();
+        const match = raw.match(/Date\((\d+),\s*(\d+),\s*(\d+)\)/i);
+      if (match) {
+        const y = Number(match[1]);
+        const m = Number(match[2]);
+        const d = Number(match[3]);
+        // Google gviz Date(year,month,day) 与 JS 一致：month 为 0–11
+        const dt = new Date(y, m, d);
+        if (!Number.isNaN(dt.getTime())) return formatDateKey(dt);
+      }
+      if (!raw) return "";
+      return raw;
+    }
+
+    function pickValue(row, keys) {
+      for (const key of Object.keys(row)) {
+        const nk = normalizeHeader(key);
+        if (keys.includes(nk)) return row[key];
+      }
+      return "";
+    }
+
+    function pickByColIndex(row, idx) {
+      return row[`col_${idx}`];
+    }
+
+    function normalizePlatform(raw) {
+      const s = String(raw || "").toLowerCase();
+      if (s.includes("twitter") || s.includes("x")) return "Twitter";
+      if (s.includes("youtube") || s.includes("yt")) return "YouTube";
+      if (s.includes("tiktok") || s.includes("tik tok")) return "TikTok";
+      if (s.includes("instagram") || s.includes("ins")) return "Instagram";
+      if (s.includes("facebook") || s.includes("fb")) return "Facebook";
+      return String(raw || "未知平台");
+    }
+
+    function parseRows(rawRows) {
+      return rawRows.map((row) => {
+        // 兼容你当前表格（宣发时间/是否原创/账号运营人/获索引是否）及通用中英文字段
+        const views = toNumber(pickValue(row, ["最新浏览量", "浏览量", "播放量", "展现量", "views", "impressions"]) || pickByColIndex(row, 9));
+        const likes = toNumber(pickValue(row, ["点赞量", "点赞", "likes", "like"]) || pickByColIndex(row, 11));
+        const comments = toNumber(pickValue(row, ["最新评论量", "评论量", "评论", "留言", "comments", "comment"]) || pickByColIndex(row, 10));
+        const saves = toNumber(pickValue(row, ["收藏量", "收藏", "saves", "save"]) || pickByColIndex(row, 12));
+        const shares = toNumber(pickValue(row, ["转发量", "分享量", "转发", "shares", "share", "repost"]) || pickByColIndex(row, 13));
+        const seoRaw = String(pickValue(row, ["获索引是否", "收录", "seo收录", "seoindexed", "indexed"]) || pickByColIndex(row, 15) || "");
+        const seoIndexed = /是|yes|y|true|google/i.test(seoRaw) ? 1 : toNumber(seoRaw);
+
+        const platform = normalizePlatform(pickValue(row, ["宣发平台", "平台", "platform", "channel"]) || pickByColIndex(row, 2));
+        const account = String(pickValue(row, ["账号名称", "账号", "account", "accountname"]) || pickByColIndex(row, 8) || "未知账号").trim();
+        const title = String(pickValue(row, ["标题", "内容标题", "title", "contenttitle"]) || pickByColIndex(row, 3) || "未命名内容");
+        const contentSourceRaw = String(pickValue(row, ["是否原创", "内容来源", "原创搬运", "source", "contentsource"]) || pickByColIndex(row, 6) || "");
+        const contentSource = /非原创|搬运|转载/i.test(contentSourceRaw) ? "搬运" : "原创";
+        const contentFormRaw = String(pickValue(row, ["内容形式", "视频图文", "form", "contentform"]) || pickByColIndex(row, 5) || "");
+        const contentForm = /图|文|image|post/i.test(contentFormRaw) ? "图文" : "视频";
+        const link = String(pickValue(row, ["链接", "url", "link"]) || pickByColIndex(row, 3) || "-");
+        const date = normalizeDateValue(pickValue(row, ["宣发时间", "日期", "发布时间", "date", "publishdate"]) || pickByColIndex(row, 1));
+
+        return { date, platform, account, title, contentSource, contentForm, views, likes, comments, saves, shares, seoIndexed, link };
+      }).filter((row) => {
+        if (!row.platform || !row.account || !row.date) return false;
+        if (!/twitter|youtube|tiktok|instagram|facebook/i.test(row.platform)) return false;
+        return !Number.isNaN(parseDate(row.date).getTime());
+      });
+    }
+
+    function setSyncStatus(message, level = "normal") {
+      const el = document.getElementById("syncStatus");
+      if (!el) return;
+      el.textContent = `同步状态：${message}`;
+      if (level === "success") {
+        el.style.color = "#059669";
+      } else if (level === "error") {
+        el.style.color = "#dc2626";
+      } else {
+        el.style.color = "var(--muted)";
+      }
+    }
+
+    function parseCsvToRows(csvText) {
+      const wb = XLSX.read(csvText, { type: "string" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      return XLSX.utils.sheet_to_json(ws, { defval: "" });
+    }
+
+    function parseGoogleTableObject(obj) {
+      const cols = (obj.table && obj.table.cols) ? obj.table.cols : [];
+      const rows = (obj.table && obj.table.rows) ? obj.table.rows : [];
+      const headers = cols.map((c) => (c && (c.label || c.id)) ? (c.label || c.id) : "");
+      return rows.map((r) => {
+        const result = {};
+        headers.forEach((h, i) => {
+          const cell = r && r.c && r.c[i] ? r.c[i] : null;
+          if (!cell) {
+            result[h || `col_${i}`] = "";
+            return;
+          }
+          // gviz 日期等字段优先用 f（格式化文本），其余回退 v
+          result[h || `col_${i}`] = cell.f !== undefined ? cell.f : (cell.v !== undefined ? cell.v : "");
+        });
+        return result;
+      });
+    }
+
+    async function fetchGoogleSheetRowsByJsonp() {
+      return new Promise((resolve, reject) => {
+        const callbackName = `muSheetCallback_${Date.now()}`;
+        const script = document.createElement("script");
+        let settled = false;
+        const timeout = window.setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error("Google 表格请求超时"));
+        }, 12000);
+
+        function cleanup() {
+          window.clearTimeout(timeout);
+          try { delete window[callbackName]; } catch (e) { window[callbackName] = undefined; }
+          if (script.parentNode) script.parentNode.removeChild(script);
+        }
+
+        window[callbackName] = (obj) => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          const parsed = parseGoogleTableObject(obj || {});
+          if (!parsed.length) {
+            reject(new Error("Google 表格无可解析数据"));
+            return;
+          }
+          resolve(parsed);
+        };
+
+        script.onerror = () => {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(new Error("Google 表格脚本加载失败"));
+        };
+
+        const sheetNameParam = encodeURIComponent(GOOGLE_SHEET_NAME);
+        script.src = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/gviz/tq?sheet=${sheetNameParam}&tqx=responseHandler:${callbackName}`;
+        document.body.appendChild(script);
+      });
+    }
+
+    async function fetchGoogleSheetRows() {
+      // 使用 JSONP 规避 file:// 页面 fetch CORS 问题，并固定读取指定 sheet 名称。
+      return fetchGoogleSheetRowsByJsonp();
+    }
+
+    function todayKey() {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    }
+
+    async function syncFromGoogleSheet() {
+      setSyncStatus("正在同步 Google 表格...");
+      try {
+        const rows = await fetchGoogleSheetRows();
+        const parsed = parseRows(rows);
+        if (!parsed.length) {
+          throw new Error("已获取数据，但未匹配到可用字段");
+        }
+        allRows = parsed;
+        updateAccountFilterOptions(rowsForFilterOptions());
+        updatePlatformFilterOptions(rowsForFilterOptions());
+        render();
+        localStorage.setItem(SYNC_DATE_KEY, todayKey());
+        setSyncStatus(`同步成功，共 ${parsed.length} 条记录，时间：${new Date().toLocaleString("zh-CN")}`, "success");
+      } catch (err) {
+        setSyncStatus(`同步失败：${err && err.message ? err.message : "未知错误"}。请确认表格已设为“知道链接的任何人可查看”，并检查页签名是否为“${GOOGLE_SHEET_NAME}”。`, "error");
+      }
+    }
+
+    function buildAnalysis(data) {
+      const totalPosts = data.length;
+      const totalViews = data.reduce((sum, d) => sum + d.views, 0);
+      const totalInteract = data.reduce((sum, d) => sum + d.likes + d.comments + d.saves + d.shares, 0);
+      const avgViews = totalPosts ? Math.round(totalViews / totalPosts) : 0;
+      const interactRate = totalViews ? (totalInteract / totalViews) : 0;
+      const over10k = data.filter((d) => d.views >= 10000).length;
+      const seoTotal = data.reduce((sum, d) => sum + d.seoIndexed, 0);
+
+      const platformStats = {};
+      platformOrder.forEach((p) => {
+        platformStats[p] = { posts: 0, views: 0, interact: 0 };
+      });
+
+      const accountStats = {};
+      const contentTypeStats = {};
+
+      data.forEach((d) => {
+        const interaction = d.likes + d.comments + d.saves + d.shares;
+        if (!platformStats[d.platform]) platformStats[d.platform] = { posts: 0, views: 0, interact: 0 };
+        platformStats[d.platform].posts += 1;
+        platformStats[d.platform].views += d.views;
+        platformStats[d.platform].interact += interaction;
+
+        if (!accountStats[d.account]) accountStats[d.account] = { posts: 0, views: 0, interact: 0 };
+        accountStats[d.account].posts += 1;
+        accountStats[d.account].views += d.views;
+        accountStats[d.account].interact += interaction;
+
+        const key = d.contentSource + "-" + d.contentForm;
+        if (!contentTypeStats[key]) contentTypeStats[key] = { posts: 0, views: 0, interact: 0 };
+        contentTypeStats[key].posts += 1;
+        contentTypeStats[key].views += d.views;
+        contentTypeStats[key].interact += interaction;
+      });
+
+      const sortedByViews = [...data].sort((a, b) => b.views - a.views);
+      const top3 = sortedByViews.slice(0, 3);
+      const low3 = [...sortedByViews].reverse().slice(0, 3);
+      const accountRank = Object.entries(accountStats)
+        .sort((a, b) => b[1].views - a[1].views)
+        .slice(0, 10);
+
+      return {
+        totalPosts,
+        totalViews,
+        totalInteract,
+        avgViews,
+        interactRate,
+        over10k,
+        seoTotal,
+        platformStats,
+        accountRank,
+        contentTypeStats,
+        top3,
+        low3
+      };
+    }
+
+    function fmtNum(n) {
+      return Number(n || 0).toLocaleString("zh-CN");
+    }
+
+    function pct(v) {
+      return (v * 100).toFixed(2) + "%";
+    }
+
+    function safeRatio(curr, prev) {
+      if (prev === 0 && curr === 0) return 0;
+      if (prev === 0 && curr > 0) return null;
+      return (curr - prev) / prev;
+    }
+
+    function ratioText(rate) {
+      if (rate === null) return "--";
+      return `${rate >= 0 ? "+" : ""}${(rate * 100).toFixed(2)}%`;
+    }
+
+    function ratioClass(rate) {
+      if (rate === null || rate === 0) return "ratio-flat";
+      return rate > 0 ? "ratio-up" : "ratio-down";
+    }
+
+    function parseDate(dateStr) {
+      const raw = String(dateStr || "").trim();
+      const withSlash = raw.replace(/[.\-]/g, "/");
+      // 完整日期 YYYY/M/D 或 YYYY-M-D（优先于无年月的 M/D，避免歧义）
+      const full = withSlash.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+      if (full) {
+        const y = Number(full[1]);
+        const m = Number(full[2]);
+        const day = Number(full[3]);
+        const dt = new Date(y, m - 1, day);
+        return Number.isNaN(dt.getTime()) ? new Date() : dt;
+      }
+      if (/^\d{1,2}\/\d{1,2}$/.test(withSlash)) {
+        const year = new Date().getFullYear();
+        const [m, d] = withSlash.split("/").map((x) => Number(x));
+        return new Date(year, m - 1, d);
+      }
+      const d = new Date(withSlash);
+      return Number.isNaN(d.getTime()) ? new Date() : d;
+    }
+
+    function formatDateKey(d) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
+
+    /** 以本机「今天」为终点，含今日共 30 个自然日的宣发数据参与统计与图表 */
+    const ROLLING_WINDOW_DAYS = 30;
+
+    function getRollingWindowBounds() {
+      const t = new Date();
+      const endDay = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+      const startDay = new Date(endDay);
+      startDay.setDate(endDay.getDate() - (ROLLING_WINDOW_DAYS - 1));
+      return { startDay, endDay };
+    }
+
+    function getRollingWindowDayKeys() {
+      const { startDay, endDay } = getRollingWindowBounds();
+      const result = [];
+      for (let d = new Date(startDay); d <= endDay; d.setDate(d.getDate() + 1)) {
+        result.push(formatDateKey(d));
+      }
+      return result;
+    }
+
+    function isRowInRollingWindow(r) {
+      const d = parseDate(r.date);
+      const rd = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const { startDay, endDay } = getRollingWindowBounds();
+      return rd >= startDay && rd <= endDay;
+    }
+
+    function getRowsInRollingWindow(rows) {
+      return rows.filter((r) => isRowInRollingWindow(r));
+    }
+
+    function rowsForFilterOptions() {
+      const w = getRowsInRollingWindow(allRows);
+      return w.length ? w : allRows;
+    }
+
+    function updateMonthChart(data, selectedPlatform) {
+      const labels = getRollingWindowDayKeys();
+      const xLabels = labels.map((k) => k.slice(5));
+      const byDay = {};
+      labels.forEach((day) => {
+        byDay[day] = 0;
+      });
+
+      data.forEach((row) => {
+        const dayKey = formatDateKey(parseDate(row.date));
+        if (!labels.includes(dayKey)) return;
+        if (selectedPlatform !== "ALL" && row.platform !== selectedPlatform) return;
+        byDay[dayKey] += row.views;
+      });
+
+      const datasets = [{
+        label: selectedPlatform === "ALL" ? "近30天·全部平台日播放量" : `近30天·${selectedPlatform} 日播放量`,
+        data: labels.map((day) => byDay[day] || 0),
+        borderRadius: 4,
+        backgroundColor: "rgba(79,70,229,0.75)"
+      }];
+
+      const ctx = document.getElementById("monthChart");
+      if (monthChart) monthChart.destroy();
+      monthChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: xLabels,
+          datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: "index",
+            intersect: false
+          },
+          plugins: {
+            legend: { display: true },
+            tooltip: {
+              callbacks: {
+                title: (items) => {
+                  if (!items || items.length === 0) return "";
+                  const idx = items[0].dataIndex;
+                  return `日期：${labels[idx]}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function updateAccountFilterOptions(data) {
+      const select = document.getElementById("accountFilter");
+      const uniq = Array.from(new Set(data.map((d) => d.account))).sort();
+      const current = select.value || "ALL";
+      select.innerHTML = [`<option value="ALL">全部账号</option>`]
+        .concat(uniq.map((a) => `<option value="${a}">${a}</option>`))
+        .join("");
+      if (uniq.includes(current)) {
+        select.value = current;
+      } else {
+        select.value = "ALL";
+      }
+    }
+
+    function updatePlatformFilterOptions(data) {
+      const select = document.getElementById("platformFilter");
+      const uniq = Array.from(new Set(data.map((d) => d.platform))).sort();
+      const current = select.value || "ALL";
+      select.innerHTML = [`<option value="ALL">全部平台</option>`]
+        .concat(uniq.map((p) => `<option value="${p}">${p}</option>`))
+        .join("");
+      if (uniq.includes(current)) {
+        select.value = current;
+      } else {
+        select.value = "ALL";
+      }
+    }
+
+    function getFilteredRows() {
+      const selectedAccount = document.getElementById("accountFilter").value || "ALL";
+      const selectedPlatform = document.getElementById("platformFilter").value || "ALL";
+      const windowed = getRowsInRollingWindow(allRows);
+      return windowed.filter((r) => {
+        const accountHit = selectedAccount === "ALL" || r.account === selectedAccount;
+        const platformHit = selectedPlatform === "ALL" || r.platform === selectedPlatform;
+        return accountHit && platformHit;
+      });
+    }
+
+    function buildComparisonMetrics(rows) {
+      if (rows.length === 0) {
+        return {
+          overall: { dayCurrent: 0, dayPrev: 0, dayRate: 0, monthCurrent: 0, monthPrev: 0, monthRate: 0 },
+          byPlatform: {}
+        };
+      }
+      // 环比以「日历今日 / 本月」为基准，与数据里最新一条日期解耦
+      const today = new Date();
+      const currentDayKey = formatDateKey(today);
+      const prevDayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+      const prevDayKey = formatDateKey(prevDayDate);
+      const currMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+      const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const prevMonthKey = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
+
+      const byPlatform = {};
+      platformOrder.forEach((p) => {
+        byPlatform[p] = { dayCurrent: 0, dayPrev: 0, monthCurrent: 0, monthPrev: 0 };
+      });
+
+      let dayCurrentAll = 0;
+      let dayPrevAll = 0;
+      let monthCurrentAll = 0;
+      let monthPrevAll = 0;
+
+      rows.forEach((r) => {
+        const d = parseDate(r.date);
+        const dayKey = formatDateKey(d);
+        const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        if (!byPlatform[r.platform]) byPlatform[r.platform] = { dayCurrent: 0, dayPrev: 0, monthCurrent: 0, monthPrev: 0 };
+
+        if (dayKey === currentDayKey) {
+          byPlatform[r.platform].dayCurrent += r.views;
+          dayCurrentAll += r.views;
+        } else if (dayKey === prevDayKey) {
+          byPlatform[r.platform].dayPrev += r.views;
+          dayPrevAll += r.views;
+        }
+
+        if (monthKey === currMonthKey) {
+          byPlatform[r.platform].monthCurrent += r.views;
+          monthCurrentAll += r.views;
+        } else if (monthKey === prevMonthKey) {
+          byPlatform[r.platform].monthPrev += r.views;
+          monthPrevAll += r.views;
+        }
+      });
+
+      Object.keys(byPlatform).forEach((p) => {
+        byPlatform[p].dayRate = safeRatio(byPlatform[p].dayCurrent, byPlatform[p].dayPrev);
+        byPlatform[p].monthRate = safeRatio(byPlatform[p].monthCurrent, byPlatform[p].monthPrev);
+      });
+
+      return {
+        overall: {
+          dayCurrent: dayCurrentAll,
+          dayPrev: dayPrevAll,
+          dayRate: safeRatio(dayCurrentAll, dayPrevAll),
+          monthCurrent: monthCurrentAll,
+          monthPrev: monthPrevAll,
+          monthRate: safeRatio(monthCurrentAll, monthPrevAll)
+        },
+        byPlatform
+      };
+    }
+
+    function render() {
+      const data = getFilteredRows();
+      const selectedAccount = document.getElementById("accountFilter").value || "ALL";
+      const selectedPlatform = document.getElementById("platformFilter").value || "ALL";
+      if (data.length === 0) {
+        document.getElementById("kpiGrid").innerHTML = "";
+        document.getElementById("overviewSentence").textContent = "当前筛选条件下，近30天（含今日）没有数据，请切换账号或平台，或确认表格宣发时间是否落在此区间内。";
+        document.getElementById("platformTable").innerHTML = "<tr><th>平台</th><th>当日发布数量</th><th>当日播放量</th><th>当日平均播放</th><th>当日总互动</th><th>当日互动率</th><th>日环比(播放)</th><th>月环比(播放)</th></tr>";
+        document.getElementById("compareTable").innerHTML = "<tr><th>维度</th><th>当前值</th><th>上一周期值</th><th>环比</th></tr>";
+        document.getElementById("dailyReport").textContent = "当前筛选条件下暂无日报数据。";
+        updateMonthChart([], selectedPlatform);
+        return;
+      }
+      const a = buildAnalysis(data);
+      const cmp = buildComparisonMetrics(data);
+      const todayKey = formatDateKey(new Date());
+      const latestDate = data.reduce((max, r) => {
+        const d = parseDate(r.date);
+        return d > max ? d : max;
+      }, parseDate(data[0].date));
+      const latestDateKey = formatDateKey(latestDate);
+      const todayData = data.filter((r) => formatDateKey(parseDate(r.date)) === todayKey);
+      const todayAnalysis = buildAnalysis(todayData);
+
+      document.getElementById("kpiGrid").innerHTML = [
+        ["近30天发布条数", fmtNum(a.totalPosts)],
+        ["近30天总浏览量", fmtNum(a.totalViews)],
+        ["近30天条均播放", fmtNum(a.avgViews)],
+        ["近30天总互动", fmtNum(a.totalInteract)],
+        ["近30天互动率", pct(a.interactRate)],
+        ["近30天 SEO 收录条数", fmtNum(a.seoTotal)]
+      ].map((k) => `<div class="kpi"><div class="label">${k[0]}</div><div class="value">${k[1]}</div></div>`).join("");
+
+      const bestPlatform = Object.entries(todayAnalysis.platformStats).sort((x, y) => y[1].views - x[1].views)[0];
+      const mainSentence = todayAnalysis.totalPosts > 0
+        ? `今日（${todayKey}）共发布 ${todayAnalysis.totalPosts} 条内容，累计浏览 ${fmtNum(todayAnalysis.totalViews)}、互动 ${fmtNum(todayAnalysis.totalInteract)}，流量主要集中在 ${bestPlatform ? bestPlatform[0] : "主平台"}，平台分布仍有明显优化空间。`
+        : `今日（${todayKey}）暂无宣发记录；数据中最近一条日期为 ${latestDateKey}。请确认表格「宣发时间」已更新为当前日期，或点击「同步 Google 表格」拉取最新数据。`;
+      document.getElementById("overviewSentence").textContent = mainSentence;
+
+      const platformRows = todayAnalysis.totalPosts > 0
+        ? Object.entries(todayAnalysis.platformStats)
+            .sort((x, y) => y[1].views - x[1].views)
+            .map(([name, v]) => {
+              const avg = v.posts ? Math.round(v.views / v.posts) : 0;
+              const rate = v.views ? v.interact / v.views : 0;
+              const stat = cmp.byPlatform[name] || { dayRate: 0, monthRate: 0 };
+              return `<tr>
+            <td>${name}</td>
+            <td>${v.posts}</td>
+            <td>${fmtNum(v.views)}</td>
+            <td>${fmtNum(avg)}</td>
+            <td>${fmtNum(v.interact)}</td>
+            <td>${pct(rate)}</td>
+            <td class="${ratioClass(stat.dayRate)}">${ratioText(stat.dayRate)}</td>
+            <td class="${ratioClass(stat.monthRate)}">${ratioText(stat.monthRate)}</td>
+          </tr>`;
+            }).join("")
+        : `<tr><td colspan="8">今日（${todayKey}）无记录；表格为「当日」维度，请先补充今日宣发或核对日期列。</td></tr>`;
+      document.getElementById("platformTable").innerHTML = `
+        <tr><th>平台</th><th>当日发布数量</th><th>当日播放量</th><th>当日平均播放</th><th>当日总互动</th><th>当日互动率</th><th>日环比(播放)</th><th>月环比(播放)</th></tr>
+        ${platformRows}
+      `;
+
+      document.getElementById("compareTable").innerHTML = `
+        <tr><th>维度</th><th>当前值</th><th>上一周期值</th><th>环比</th></tr>
+        <tr>
+          <td>整体周环比（播放）</td>
+          <td>${fmtNum(cmp.overall.dayCurrent)}</td>
+          <td>${fmtNum(cmp.overall.dayPrev)}</td>
+          <td class="${ratioClass(cmp.overall.dayRate)}">${ratioText(cmp.overall.dayRate)}</td>
+        </tr>
+        <tr>
+          <td>整体月环比（播放）</td>
+          <td>${fmtNum(cmp.overall.monthCurrent)}</td>
+          <td>${fmtNum(cmp.overall.monthPrev)}</td>
+          <td class="${ratioClass(cmp.overall.monthRate)}">${ratioText(cmp.overall.monthRate)}</td>
+        </tr>
+      `;
+
+      updateMonthChart(data, selectedPlatform);
+
+      const pMap = todayAnalysis.platformStats;
+      const reportDate = todayKey;
+      const reportText = todayAnalysis.totalPosts > 0
+        ? `每日大赛宣发：${reportDate}
+0. 当前筛选：账号（${selectedAccount === "ALL" ? "全部" : selectedAccount}）｜平台（${selectedPlatform === "ALL" ? "全部" : selectedPlatform}）
+1. 宣发平台：${Object.keys(pMap).filter((k) => pMap[k].posts > 0).length}
+2. 宣发数量：${todayAnalysis.totalPosts}条
+3. 平台播放明细：
+• twitter 播放量（${pMap.Twitter ? pMap.Twitter.views : 0}）条数（${pMap.Twitter ? pMap.Twitter.posts : 0}）
+• youtube 播放量（${pMap.YouTube ? pMap.YouTube.views : 0}）条数（${pMap.YouTube ? pMap.YouTube.posts : 0}）
+• tiktok 播放量（${pMap.TikTok ? pMap.TikTok.views : 0}）条数（${pMap.TikTok ? pMap.TikTok.posts : 0}）
+• instagram 播放量（${pMap.Instagram ? pMap.Instagram.views : 0}）条数（${pMap.Instagram ? pMap.Instagram.posts : 0}）
+• facebook 播放量（${pMap.Facebook ? pMap.Facebook.views : 0}）条数（${pMap.Facebook ? pMap.Facebook.posts : 0}）
+• 浏览总量：${todayAnalysis.totalViews}
+• 总互动：${todayAnalysis.totalInteract}
+• 条均：约${todayAnalysis.avgViews}
+• 破万：${todayAnalysis.over10k}
+4. 日报总结：
+当天流量集中在${bestPlatform ? bestPlatform[0] : "主平台"}，头部内容对整体贡献显著；其他平台承接偏弱，流量分布仍不均衡。
+建议继续复盘爆款素材并推进跨平台改编，提升非头部平台的稳定出量能力。
+5. Agent执行情况：
+统计报表
+文案标题优化
+视频爆款分析
+6. 当日问题（必须具体）：
+• 流量过度集中在头部内容，整体结构不均衡
+• 非头部平台播放偏低，分发承接能力不足
+• 普通素材稳定性一般，持续产出能力需提升
+7. 已解决问题：
+已完成数据归因与问题定位，为后续素材优化、平台分发和爆款复用提供明确依据`
+        : `每日大赛宣发：${reportDate}\n今日（${todayKey}）暂无宣发记录，未生成明细日报。数据中最近有数据的日期为 ${latestDateKey}。请检查表格「宣发时间」是否为今日，或点击「同步 Google 表格」更新。`;
+      document.getElementById("dailyReport").textContent = reportText;
+    }
+
+    function loadFromFile(file) {
+      const name = (file.name || "").toLowerCase();
+      if (name.endsWith(".csv")) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const text = e.target.result;
+          const wb = XLSX.read(text, { type: "string" });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+          allRows = parseRows(rows);
+          updateAccountFilterOptions(rowsForFilterOptions());
+          updatePlatformFilterOptions(rowsForFilterOptions());
+          render();
+        };
+        reader.readAsText(file, "utf-8");
+      } else {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const data = new Uint8Array(e.target.result);
+          const wb = XLSX.read(data, { type: "array" });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+          allRows = parseRows(rows);
+          updateAccountFilterOptions(rowsForFilterOptions());
+          updatePlatformFilterOptions(rowsForFilterOptions());
+          render();
+        };
+        reader.readAsArrayBuffer(file);
+      }
+    }
+
+    document.getElementById("upload").addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      loadFromFile(file);
+    });
+
+    document.getElementById("loadMockBtn").addEventListener("click", () => {
+      allRows = generateMockMonthData(fakeData);
+      updateAccountFilterOptions(rowsForFilterOptions());
+      updatePlatformFilterOptions(rowsForFilterOptions());
+      render();
+      setSyncStatus("已切换到假数据演示模式");
+    });
+    document.getElementById("syncSheetBtn").addEventListener("click", syncFromGoogleSheet);
+
+    document.getElementById("accountFilter").addEventListener("change", render);
+    document.getElementById("platformFilter").addEventListener("change", render);
+
+    updateAccountFilterOptions(rowsForFilterOptions());
+    updatePlatformFilterOptions(rowsForFilterOptions());
+    render();
+    const lastSyncDate = localStorage.getItem(SYNC_DATE_KEY);
+    if (lastSyncDate !== todayKey()) {
+      syncFromGoogleSheet();
+    } else {
+      setSyncStatus("今天已自动同步过，如需更新请点击“同步 Google 表格”");
+    }
+  </script>
+</body>
+</html>
