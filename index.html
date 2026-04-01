@@ -861,10 +861,11 @@
           byPlatform: {}
         };
       }
-      // 环比以「日历今日 / 本月」为基准，与数据里最新一条日期解耦
+      // 日环比以「昨日 / 前日」为基准，避免当天数据未沉淀导致波动
       const today = new Date();
-      const currentDayKey = formatDateKey(today);
-      const prevDayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+      const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+      const currentDayKey = formatDateKey(yesterday);
+      const prevDayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 2);
       const prevDayKey = formatDateKey(prevDayDate);
       const currMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
       const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
@@ -936,14 +937,16 @@
       }
       const a = buildAnalysis(data);
       const cmp = buildComparisonMetrics(data);
-      const todayKey = formatDateKey(new Date());
+      const reportBaseDate = new Date();
+      reportBaseDate.setDate(reportBaseDate.getDate() - 1);
+      const yesterdayKey = formatDateKey(reportBaseDate);
       const latestDate = data.reduce((max, r) => {
         const d = parseDate(r.date);
         return d > max ? d : max;
       }, parseDate(data[0].date));
       const latestDateKey = formatDateKey(latestDate);
-      const todayData = data.filter((r) => formatDateKey(parseDate(r.date)) === todayKey);
-      const todayAnalysis = buildAnalysis(todayData);
+      const yesterdayData = data.filter((r) => formatDateKey(parseDate(r.date)) === yesterdayKey);
+      const yesterdayAnalysis = buildAnalysis(yesterdayData);
 
       document.getElementById("kpiGrid").innerHTML = [
         ["近30天发布条数", fmtNum(a.totalPosts)],
@@ -954,14 +957,14 @@
         ["近30天 SEO 收录条数", fmtNum(a.seoTotal)]
       ].map((k) => `<div class="kpi"><div class="label">${k[0]}</div><div class="value">${k[1]}</div></div>`).join("");
 
-      const bestPlatform = Object.entries(todayAnalysis.platformStats).sort((x, y) => y[1].views - x[1].views)[0];
-      const mainSentence = todayAnalysis.totalPosts > 0
-        ? `今日（${todayKey}）共发布 ${todayAnalysis.totalPosts} 条内容，累计浏览 ${fmtNum(todayAnalysis.totalViews)}、互动 ${fmtNum(todayAnalysis.totalInteract)}，流量主要集中在 ${bestPlatform ? bestPlatform[0] : "主平台"}，平台分布仍有明显优化空间。`
-        : `今日（${todayKey}）暂无宣发记录；数据中最近一条日期为 ${latestDateKey}。请确认表格「宣发时间」已更新为当前日期，或点击「同步 Google 表格」拉取最新数据。`;
+      const bestPlatform = Object.entries(yesterdayAnalysis.platformStats).sort((x, y) => y[1].views - x[1].views)[0];
+      const mainSentence = yesterdayAnalysis.totalPosts > 0
+        ? `昨日（${yesterdayKey}）共发布 ${yesterdayAnalysis.totalPosts} 条内容，累计浏览 ${fmtNum(yesterdayAnalysis.totalViews)}、互动 ${fmtNum(yesterdayAnalysis.totalInteract)}，流量主要集中在 ${bestPlatform ? bestPlatform[0] : "主平台"}，平台分布仍有明显优化空间。`
+        : `昨日（${yesterdayKey}）暂无宣发记录；数据中最近一条日期为 ${latestDateKey}。请确认表格「宣发时间」已更新，或点击「同步 Google 表格」拉取最新数据。`;
       document.getElementById("overviewSentence").textContent = mainSentence;
 
-      const platformRows = todayAnalysis.totalPosts > 0
-        ? Object.entries(todayAnalysis.platformStats)
+      const platformRows = yesterdayAnalysis.totalPosts > 0
+        ? Object.entries(yesterdayAnalysis.platformStats)
             .sort((x, y) => y[1].views - x[1].views)
             .map(([name, v]) => {
               const avg = v.posts ? Math.round(v.views / v.posts) : 0;
@@ -978,7 +981,7 @@
             <td class="${ratioClass(stat.monthRate)}">${ratioText(stat.monthRate)}</td>
           </tr>`;
             }).join("")
-        : `<tr><td colspan="8">今日（${todayKey}）无记录；表格为「当日」维度，请先补充今日宣发或核对日期列。</td></tr>`;
+        : `<tr><td colspan="8">昨日（${yesterdayKey}）无记录；表格为「日报」维度，请先补充昨日宣发或核对日期列。</td></tr>`;
       document.getElementById("platformTable").innerHTML = `
         <tr><th>平台</th><th>当日发布数量</th><th>当日播放量</th><th>当日平均播放</th><th>当日总互动</th><th>当日互动率</th><th>日环比(播放)</th><th>月环比(播放)</th></tr>
         ${platformRows}
@@ -1002,23 +1005,23 @@
 
       updateMonthChart(data, selectedPlatform);
 
-      const pMap = todayAnalysis.platformStats;
-      const reportDate = todayKey;
-      const reportText = todayAnalysis.totalPosts > 0
+      const pMap = yesterdayAnalysis.platformStats;
+      const reportDate = yesterdayKey;
+      const reportText = yesterdayAnalysis.totalPosts > 0
         ? `每日大赛宣发：${reportDate}
 0. 当前筛选：账号（${selectedAccount === "ALL" ? "全部" : selectedAccount}）｜平台（${selectedPlatform === "ALL" ? "全部" : selectedPlatform}）
 1. 宣发平台：${Object.keys(pMap).filter((k) => pMap[k].posts > 0).length}
-2. 宣发数量：${todayAnalysis.totalPosts}条
+2. 宣发数量：${yesterdayAnalysis.totalPosts}条
 3. 平台播放明细：
 • twitter 播放量（${pMap.Twitter ? pMap.Twitter.views : 0}）条数（${pMap.Twitter ? pMap.Twitter.posts : 0}）
 • youtube 播放量（${pMap.YouTube ? pMap.YouTube.views : 0}）条数（${pMap.YouTube ? pMap.YouTube.posts : 0}）
 • tiktok 播放量（${pMap.TikTok ? pMap.TikTok.views : 0}）条数（${pMap.TikTok ? pMap.TikTok.posts : 0}）
 • instagram 播放量（${pMap.Instagram ? pMap.Instagram.views : 0}）条数（${pMap.Instagram ? pMap.Instagram.posts : 0}）
 • facebook 播放量（${pMap.Facebook ? pMap.Facebook.views : 0}）条数（${pMap.Facebook ? pMap.Facebook.posts : 0}）
-• 浏览总量：${todayAnalysis.totalViews}
-• 总互动：${todayAnalysis.totalInteract}
-• 条均：约${todayAnalysis.avgViews}
-• 破万：${todayAnalysis.over10k}
+• 浏览总量：${yesterdayAnalysis.totalViews}
+• 总互动：${yesterdayAnalysis.totalInteract}
+• 条均：约${yesterdayAnalysis.avgViews}
+• 破万：${yesterdayAnalysis.over10k}
 4. 日报总结：
 当天流量集中在${bestPlatform ? bestPlatform[0] : "主平台"}，头部内容对整体贡献显著；其他平台承接偏弱，流量分布仍不均衡。
 建议继续复盘爆款素材并推进跨平台改编，提升非头部平台的稳定出量能力。
@@ -1032,7 +1035,7 @@
 • 普通素材稳定性一般，持续产出能力需提升
 7. 已解决问题：
 已完成数据归因与问题定位，为后续素材优化、平台分发和爆款复用提供明确依据`
-        : `每日大赛宣发：${reportDate}\n今日（${todayKey}）暂无宣发记录，未生成明细日报。数据中最近有数据的日期为 ${latestDateKey}。请检查表格「宣发时间」是否为今日，或点击「同步 Google 表格」更新。`;
+        : `每日大赛宣发：${reportDate}\n昨日（${yesterdayKey}）暂无宣发记录，未生成明细日报。数据中最近有数据的日期为 ${latestDateKey}。请检查表格「宣发时间」是否已补齐昨日数据，或点击「同步 Google 表格」更新。`;
       document.getElementById("dailyReport").textContent = reportText;
     }
 
